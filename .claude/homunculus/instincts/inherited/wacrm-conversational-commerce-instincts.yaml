@@ -1,0 +1,428 @@
+# Instincts generated from https://github.com/Matandaelis/wacrm-conversational-commerce
+# Generated: 2026-07-05T01:18:38.570Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: wacrm-conversational-commerce-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat
+
+## Evidence
+
+- 4 commits analyzed
+- Detected conventional commit pattern
+- Examples: feat: add new migration guide and runner setup documentation, feat: add WhatsApp conversational API endpoints and webhook handling
+
+---
+id: wacrm-conversational-commerce-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Commit Length
+
+## Action
+
+Write moderate-length commit messages (~71 characters)
+
+## Evidence
+
+- Average commit message length: 71 chars
+- Based on 4 commits
+
+---
+id: wacrm-conversational-commerce-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Naming Files
+
+## Action
+
+Use snake_case naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: snake_case
+
+---
+id: wacrm-conversational-commerce-import-alias
+trigger: "when importing modules"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Import Alias
+
+## Action
+
+Use path aliases (@/, ~/) instead of relative imports
+
+## Evidence
+
+- Import analysis shows alias pattern
+- Example: import { x } from '@/lib/x'
+
+---
+id: wacrm-conversational-commerce-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: wacrm-conversational-commerce-arch-type-based
+trigger: "when adding new code"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Arch Type Based
+
+## Action
+
+Place code in the appropriate type folder (components/, services/, utils/, etc.)
+
+## Evidence
+
+- Type-based module organization detected
+- Folders: app, components, lib, types
+
+---
+id: wacrm-conversational-commerce-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: wacrm-conversational-commerce-workflow-add-feature-with-api-endpoints-and-migrations
+trigger: "when doing add feature with api endpoints and migrations"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Workflow Add Feature With Api Endpoints And Migrations
+
+## Action
+
+Follow the add-feature-with-api-endpoints-and-migrations workflow:
+1. Create new API route files under src/app/api/feature/route.ts
+2. Update or add related components under src/components/settings/
+3. Implement supporting library code under src/lib/
+4. Update type definitions in src/types/index.ts
+5. Add a new database migration file under supabase/migrations/
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: src/app/api/*/route.ts, src/components/settings/*.tsx, src/lib/**/*.ts
+
+---
+id: wacrm-conversational-commerce-workflow-add-feature-documentation-and-checklists
+trigger: "when doing add feature documentation and checklists"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Workflow Add Feature Documentation And Checklists
+
+## Action
+
+Follow the add-feature-documentation-and-checklists workflow:
+1. Create or update markdown documentation files (e.g., guides, checklists, verification notes)
+2. Commit with a message referencing the feature or process
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: *.md
+
+---
+id: wacrm-conversational-commerce-instinct-file-naming
+trigger: "When creating a new file in the codebase"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct File Naming
+
+## Action
+
+Name the file using snake_case
+
+## Evidence
+
+- Pattern in namingConventions.files
+- Observed in src/app/api/*/route.ts
+
+---
+id: wacrm-conversational-commerce-instinct-function-naming
+trigger: "When defining a new function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Function Naming
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.functions
+
+---
+id: wacrm-conversational-commerce-instinct-class-naming
+trigger: "When defining a new class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Class Naming
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.classes
+
+---
+id: wacrm-conversational-commerce-instinct-constant-naming
+trigger: "When declaring a constant"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Constant Naming
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE
+
+## Evidence
+
+- Pattern in namingConventions.constants
+
+---
+id: wacrm-conversational-commerce-instinct-import-alias
+trigger: "When importing modules"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Import Alias
+
+## Action
+
+Use alias import style
+
+## Evidence
+
+- Pattern in importStyle
+
+---
+id: wacrm-conversational-commerce-instinct-named-exports
+trigger: "When exporting functions or components"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Named Exports
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in exportStyle
+
+---
+id: wacrm-conversational-commerce-instinct-try-catch-errors
+trigger: "When handling errors in code"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Try Catch Errors
+
+## Action
+
+Use try-catch blocks for error handling
+
+## Evidence
+
+- Pattern in errorHandling.style
+
+---
+id: wacrm-conversational-commerce-instinct-test-location
+trigger: "When adding new tests"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Test Location
+
+## Action
+
+Place test files in a separate directory from source code
+
+## Evidence
+
+- Pattern in architecture.testLocation
+
+---
+id: wacrm-conversational-commerce-instinct-conventional-commits
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Conventional Commits
+
+## Action
+
+Use the conventional commit format with 'feat' prefix for new features
+
+## Evidence
+
+- Seen in commit: 'feat: add WhatsApp conversational API endpoints and webhook handling'
+- Pattern in commits.prefixes
+
+---
+id: wacrm-conversational-commerce-instinct-commit-length
+trigger: "When composing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct Commit Length
+
+## Action
+
+Keep commit message length around 71 characters on average
+
+## Evidence
+
+- Pattern in commits.averageLength
+
+---
+id: wacrm-conversational-commerce-instinct-new-feature-api-migration
+trigger: "When adding a new major feature involving backend API and database changes"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct New Feature Api Migration
+
+## Action
+
+Create API route files, update/add related components, implement supporting library code, update type definitions, and add a database migration file
+
+## Evidence
+
+- Workflow: add-feature-with-api-endpoints-and-migrations
+- Seen in commit sequence for new features
+
+---
+id: wacrm-conversational-commerce-instinct-new-feature-docs
+trigger: "When documenting a new feature, process, or checklist"
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: Matandaelis/wacrm-conversational-commerce
+---
+
+# Wacrm Conversational Commerce Instinct New Feature Docs
+
+## Action
+
+Create or update markdown documentation files and reference the feature or process in the commit message
+
+## Evidence
+
+- Workflow: add-feature-documentation-and-checklists
+- Seen in commit: 'feat: add new migration guide and runner setup documentation'
+
