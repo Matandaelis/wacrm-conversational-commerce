@@ -6,6 +6,7 @@ import { normalizePhone, phonesMatch } from '@/lib/whatsapp/phone-utils'
 import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
+import { detectComponentSource } from '@/lib/whatsapp/conversational-api'
 
 // Lazy-initialized to avoid build-time crash when env vars are missing
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -639,6 +640,41 @@ async function processMessage(
     isFirstInboundMessage,
   })
   const flowConsumed = flowResult.consumed
+
+  // Detect if message came from an ice breaker or command
+  // Fetch active components for this phone number to detect source
+  let componentSource: 'ice_breaker' | 'command' | null = null
+  try {
+    const { data: components, error: compError } = await supabaseAdmin()
+      .from('conversational_components')
+      .select('name, type')
+      .eq('user_id', userId)
+      .eq('phone_number_id', message.from) // Note: this is the phone of the message sender, not our number
+      .eq('status', 'active')
+    
+    if (!compError && components && components.length > 0) {
+      const iceBreakers = components
+        .filter((c: { type: string }) => c.type === 'ice_breaker')
+        .map((c: { name: string }) => c.name)
+      const commands = components
+        .filter((c: { type: string }) => c.type === 'command')
+        .map((c: { name: string }) => c.name)
+      
+      componentSource = detectComponentSource(
+        contentText || message.text?.body || '',
+        iceBreakers,
+        commands
+      )
+      
+      if (componentSource) {
+        console.log(
+          `[webhook] message from ${componentSource}: "${contentText || message.text?.body}"`
+        )
+      }
+    }
+  } catch (err) {
+    console.warn('[webhook] component detection failed:', err)
+  }
 
   // Fire any automations that react to this webhook event. All dispatches
   // run here (not earlier) so the contact, conversation, and inbound

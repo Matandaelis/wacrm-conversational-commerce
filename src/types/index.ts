@@ -409,3 +409,31 @@ export interface AutomationLog {
   created_at: string;
   contact?: Contact;
 }
+
+// ============================================================
+// Conversational Commerce (migration 014)
+// ============================================================
+
+export type ConversationalComponentType = 'ice_breaker' | 'command';
+export type ConversationalComponentStatus = 'active' | 'inactive';
+
+export interface ConversationalComponent {
+  id: string;
+  user_id: string;
+  phone_number_id: string;
+  type: ConversationalComponentType;
+  name: string;
+  description?: string;
+  position: number;
+  status: ConversationalComponentStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationalComponentsState {
+  ice_breakers: ConversationalComponent[];
+  commands: ConversationalComponent[];
+  sync_status: 'synced' | 'pending' | 'failed';
+  last_synced_at?: string;
+  error_message?: string;
+}

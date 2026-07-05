@@ -28,6 +28,7 @@ import {
   AccordionContent,
 } from '@/components/ui/accordion';
 import type { WhatsAppConfig as WhatsAppConfigType } from '@/types';
+import { ConversationalComponentsPanel } from './conversational-components-panel';
 
 const MASKED_TOKEN = '••••••••••••••••';
 
@@ -438,6 +439,14 @@ export function WhatsAppConfig() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Conversational Components */}
+        {config && connectionStatus === 'connected' && (
+          <ConversationalComponentsPanel
+            phoneNumberId={phoneNumberId}
+            accessToken={accessToken === MASKED_TOKEN && config ? config.access_token : accessToken}
+          />
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
