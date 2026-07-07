@@ -252,7 +252,8 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
           message,
           contact,
           config.user_id,
-          decryptedAccessToken
+          decryptedAccessToken,
+          phoneNumberId
         )
       }
     }
@@ -476,7 +477,8 @@ async function processMessage(
   message: WhatsAppMessage,
   contact: { profile: { name: string }; wa_id: string },
   userId: string,
-  accessToken: string
+  accessToken: string,
+  phoneNumberId: string
 ) {
   const senderPhone = normalizePhone(message.from)
   const contactName = contact.profile.name
@@ -649,7 +651,7 @@ async function processMessage(
       .from('conversational_components')
       .select('name, type')
       .eq('user_id', userId)
-      .eq('phone_number_id', message.from) // Note: this is the phone of the message sender, not our number
+      .eq('phone_number_id', phoneNumberId)
       .eq('status', 'active')
     
     if (!compError && components && components.length > 0) {

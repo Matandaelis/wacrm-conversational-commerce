@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/accordion';
 import type { WhatsAppConfig as WhatsAppConfigType } from '@/types';
 import { ConversationalComponentsPanel } from './conversational-components-panel';
+import { ConversationalVerification } from './conversational-verification';
 
 const MASKED_TOKEN = '••••••••••••••••';
 
@@ -440,12 +441,19 @@ export function WhatsAppConfig() {
           </CardContent>
         </Card>
 
+
+
         {/* Conversational Components */}
         {config && connectionStatus === 'connected' && (
-          <ConversationalComponentsPanel
-            phoneNumberId={phoneNumberId}
-            accessToken={accessToken === MASKED_TOKEN && config ? config.access_token : accessToken}
-          />
+          <>
+            <ConversationalComponentsPanel
+              phoneNumberId={phoneNumberId}
+              accessToken={accessToken === MASKED_TOKEN && config ? config.access_token : accessToken}
+            />
+            
+            {/* Verification & Status */}
+            <ConversationalVerification phoneNumberId={phoneNumberId} />
+          </>
         )}
 
         {/* Action Buttons */}
