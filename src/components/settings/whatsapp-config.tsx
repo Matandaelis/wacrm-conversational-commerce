@@ -440,6 +440,8 @@ export function WhatsAppConfig() {
           </CardContent>
         </Card>
 
+
+
         {/* Conversational Components */}
         {config && connectionStatus === 'connected' && (
           <ConversationalComponentsPanel
