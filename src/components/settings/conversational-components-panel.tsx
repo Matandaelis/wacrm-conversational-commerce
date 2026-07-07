@@ -24,14 +24,6 @@ import {
   AlertDescription,
 } from '@/components/ui/alert'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import {
   Plus,
   Trash2,
   Loader2,
@@ -85,7 +77,6 @@ export function ConversationalComponentsPanel({
     description: string
     isNew?: boolean
   } | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'ice_breaker' | 'command', id: string } | null>(null)
 
   // Fetch components with SWR
   const { data, isLoading, error } = useSWR<ComponentsData>(
@@ -125,7 +116,6 @@ export function ConversationalComponentsPanel({
   const handleDeleteIceBreaker = useCallback((id: string) => {
     setIceBreakers((prev) => prev.filter((ib) => ib.id !== id))
     setSyncStatus('pending')
-    setDeleteConfirm(null)
   }, [])
 
   const handleAddCommand = () => {
@@ -156,7 +146,6 @@ export function ConversationalComponentsPanel({
   const handleDeleteCommand = useCallback((id: string) => {
     setCommands((prev) => prev.filter((cmd) => cmd.id !== id))
     setSyncStatus('pending')
-    setDeleteConfirm(null)
   }, [])
 
   const handleSync = useCallback(async () => {
@@ -322,7 +311,11 @@ export function ConversationalComponentsPanel({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setDeleteConfirm({ type: 'ice_breaker', id: ib.id })}
+                      onClick={() => {
+                        if (window.confirm('Delete this ice breaker?')) {
+                          handleDeleteIceBreaker(ib.id)
+                        }
+                      }}
                       className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-slate-700"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -415,7 +408,7 @@ export function ConversationalComponentsPanel({
                       size="sm"
                       variant="ghost"
                       onClick={() =>
-                        setEditingCommand({ ...cmd, isNew: false })
+                        setEditingCommand({ name: cmd.name, description: cmd.description || '', isNew: false })
                       }
                       className="h-7 px-2 text-blue-400 hover:text-blue-300 hover:bg-slate-700 text-xs"
                     >
@@ -424,7 +417,11 @@ export function ConversationalComponentsPanel({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setDeleteConfirm({ type: 'command', id: cmd.id })}
+                      onClick={() => {
+                        if (window.confirm('Delete this command?')) {
+                          handleDeleteCommand(cmd.id)
+                        }
+                      }}
                       className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-slate-700"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -574,30 +571,7 @@ export function ConversationalComponentsPanel({
         </div>
       </CardContent>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <AlertDialogContent className="bg-slate-900 border-slate-700">
-          <AlertDialogTitle className="text-white">Delete {deleteConfirm?.type === 'ice_breaker' ? 'Ice Breaker' : 'Command'}?</AlertDialogTitle>
-          <AlertDialogDescription className="text-slate-400">
-            This action cannot be undone. The {deleteConfirm?.type === 'ice_breaker' ? 'ice breaker' : 'command'} will be removed from WhatsApp.
-          </AlertDialogDescription>
-          <div className="flex gap-3 mt-6">
-            <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-800">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteConfirm?.type === 'ice_breaker') {
-                  handleDeleteIceBreaker(deleteConfirm.id)
-                } else {
-                  handleDeleteCommand(deleteConfirm.id)
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Delete
-            </AlertDialogAction>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </Card>
   )
 }

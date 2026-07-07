@@ -252,7 +252,8 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
           message,
           contact,
           config.user_id,
-          decryptedAccessToken
+          decryptedAccessToken,
+          phoneNumberId
         )
       }
     }
@@ -476,7 +477,8 @@ async function processMessage(
   message: WhatsAppMessage,
   contact: { profile: { name: string }; wa_id: string },
   userId: string,
-  accessToken: string
+  accessToken: string,
+  phoneNumberId: string
 ) {
   const senderPhone = normalizePhone(message.from)
   const contactName = contact.profile.name
@@ -645,37 +647,31 @@ async function processMessage(
   // Fetch active components for this phone number to detect source
   let componentSource: 'ice_breaker' | 'command' | null = null
   try {
-    // Get the phone_number_id from the webhook metadata
-    const phoneNumberId = metadata?.phone_number_id
-    if (!phoneNumberId) {
-      console.warn('[webhook] Missing phone_number_id for component detection')
-    } else {
-      const { data: components, error: compError } = await supabaseAdmin()
-        .from('conversational_components')
-        .select('name, type')
-        .eq('user_id', userId)
-        .eq('phone_number_id', phoneNumberId)
-        .eq('status', 'active')
+    const { data: components, error: compError } = await supabaseAdmin()
+      .from('conversational_components')
+      .select('name, type')
+      .eq('user_id', userId)
+      .eq('phone_number_id', phoneNumberId)
+      .eq('status', 'active')
+    
+    if (!compError && components && components.length > 0) {
+      const iceBreakers = components
+        .filter((c: { type: string }) => c.type === 'ice_breaker')
+        .map((c: { name: string }) => c.name)
+      const commands = components
+        .filter((c: { type: string }) => c.type === 'command')
+        .map((c: { name: string }) => c.name)
       
-      if (!compError && components && components.length > 0) {
-        const iceBreakers = components
-          .filter((c: { type: string }) => c.type === 'ice_breaker')
-          .map((c: { name: string }) => c.name)
-        const commands = components
-          .filter((c: { type: string }) => c.type === 'command')
-          .map((c: { name: string }) => c.name)
-        
-        componentSource = detectComponentSource(
-          contentText || message.text?.body || '',
-          iceBreakers,
-          commands
+      componentSource = detectComponentSource(
+        contentText || message.text?.body || '',
+        iceBreakers,
+        commands
+      )
+      
+      if (componentSource) {
+        console.log(
+          `[webhook] message from ${componentSource}: "${contentText || message.text?.body}"`
         )
-        
-        if (componentSource) {
-          console.log(
-            `[webhook] message from ${componentSource}: "${contentText || message.text?.body}"`
-          )
-        }
       }
     }
   } catch (err) {
