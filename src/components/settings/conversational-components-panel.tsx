@@ -1,230 +1,198 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { Plus, Trash2, Loader2, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/use-auth';
+import { useState, useEffect } from 'react'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert'
+import {
+  Plus,
+  Trash2,
+  Loader2,
+  Zap,
+  AlertCircle,
+  CheckCircle2,
+  MessageCircle,
+  Command as CommandIcon,
+} from 'lucide-react'
 
-interface ComponentItem {
-  id: string;
-  name: string;
-  description?: string;
-  type: 'ice_breaker' | 'command';
+interface ConversationalComponent {
+  id: string
+  name: string
+  description?: string
 }
 
-interface ConversationalComponentsPanelProps {
-  phoneNumberId: string;
-  accessToken: string;
+interface PanelProps {
+  phoneNumberId: string
+  accessToken: string
 }
 
 export function ConversationalComponentsPanel({
   phoneNumberId,
   accessToken,
-}: ConversationalComponentsPanelProps) {
-  const { user } = useAuth();
-  const supabase = createClient();
-
-  const [iceBreakers, setIceBreakers] = useState<ComponentItem[]>([]);
-  const [commands, setCommands] = useState<ComponentItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'synced' | 'failed'>('idle');
-  const [syncError, setSyncError] = useState<string>('');
-
-  // Form states
-  const [newIceBreaker, setNewIceBreaker] = useState('');
-  const [newCommand, setNewCommand] = useState('');
-  const [newCommandDesc, setNewCommandDesc] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
+}: PanelProps) {
+  const [iceBreakers, setIceBreakers] = useState<ConversationalComponent[]>([])
+  const [commands, setCommands] = useState<ConversationalComponent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'synced' | 'pending' | 'failed'>('idle')
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [editingIceBreaker, setEditingIceBreaker] = useState<{
+    name: string
+    isNew?: boolean
+  } | null>(null)
+  const [editingCommand, setEditingCommand] = useState<{
+    name: string
+    description: string
+    isNew?: boolean
+  } | null>(null)
 
   // Load components on mount
   useEffect(() => {
-    const loadComponents = async () => {
-      if (!user || !phoneNumberId) {
-        setLoading(false);
-        return;
-      }
+    loadComponents()
+  }, [phoneNumberId])
 
-      try {
-        const { data, error } = await supabase
-          .from('conversational_components')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('phone_number_id', phoneNumberId)
-          .eq('status', 'active');
-
-        if (error) throw error;
-
-        if (data) {
-          setIceBreakers(
-            data
-              .filter((c: any) => c.type === 'ice_breaker')
-              .sort((a: any, b: any) => a.position - b.position)
-          );
-          setCommands(
-            data
-              .filter((c: any) => c.type === 'command')
-              .sort((a: any, b: any) => a.position - b.position)
-          );
-        }
-      } catch (err) {
-        console.error('[conversational] load failed:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadComponents();
-  }, [user, phoneNumberId, supabase]);
-
-  // Add ice breaker
-  const addIceBreaker = async () => {
-    if (!newIceBreaker.trim() || newIceBreaker.length > 80 || iceBreakers.length >= 4) {
-      toast.error('Invalid ice breaker');
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9\s.,!?&'"-]*$/.test(newIceBreaker)) {
-      toast.error('Ice breaker contains invalid characters');
-      return;
-    }
-
+  const loadComponents = async () => {
     try {
-      const { error } = await supabase.from('conversational_components').insert({
-        user_id: user?.id,
-        phone_number_id: phoneNumberId,
-        type: 'ice_breaker',
-        name: newIceBreaker,
-        position: iceBreakers.length,
-        status: 'active',
-      });
-
-      if (error) throw error;
-
-      setIceBreakers([...iceBreakers, { id: Date.now().toString(), name: newIceBreaker, type: 'ice_breaker' }]);
-      setNewIceBreaker('');
-      toast.success('Ice breaker added');
-      setSyncStatus('idle');
-    } catch (err) {
-      toast.error('Failed to add ice breaker');
-      console.error(err);
+      setLoading(true)
+      const res = await fetch('/api/whatsapp/conversational')
+      if (!res.ok) throw new Error('Failed to load components')
+      const data = await res.json()
+      setIceBreakers(data.ice_breakers || [])
+      setCommands(data.commands || [])
+      setSyncStatus('idle')
+    } catch (error) {
+      console.error('[conversational-panel] Load error:', error)
+      setSyncStatus('failed')
+      setSyncError('Failed to load components')
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
-  // Add command
-  const addCommand = async () => {
-    if (!newCommand.trim() || newCommand.length > 32 || commands.length >= 30 || newCommandDesc.length > 256) {
-      toast.error('Invalid command');
-      return;
-    }
+  const handleAddIceBreaker = () => {
+    setEditingIceBreaker({ name: '', isNew: true })
+  }
 
-    if (!/^[a-zA-Z0-9_]*$/.test(newCommand)) {
-      toast.error('Command name must be alphanumeric + underscore only');
-      return;
-    }
+  const handleSaveIceBreaker = () => {
+    if (!editingIceBreaker || !editingIceBreaker.name.trim()) return
+    if (editingIceBreaker.name.length > 80) return
 
-    if (!/^[a-zA-Z0-9\s.,!?&'"-]*$/.test(newCommandDesc)) {
-      toast.error('Command description contains invalid characters');
-      return;
+    if (editingIceBreaker.isNew) {
+      setIceBreakers([
+        ...iceBreakers,
+        {
+          id: `ice-breaker-${Date.now()}`,
+          name: editingIceBreaker.name,
+        },
+      ])
     }
 
-    try {
-      const { error } = await supabase.from('conversational_components').insert({
-        user_id: user?.id,
-        phone_number_id: phoneNumberId,
-        type: 'command',
-        name: newCommand,
-        description: newCommandDesc,
-        position: commands.length,
-        status: 'active',
-      });
+    setEditingIceBreaker(null)
+    setSyncStatus('pending')
+  }
 
-      if (error) throw error;
+  const handleDeleteIceBreaker = (id: string) => {
+    setIceBreakers(iceBreakers.filter((ib) => ib.id !== id))
+    setSyncStatus('pending')
+  }
 
+  const handleAddCommand = () => {
+    setEditingCommand({ name: '', description: '', isNew: true })
+  }
+
+  const handleSaveCommand = () => {
+    if (!editingCommand || !editingCommand.name.trim()) return
+    if (editingCommand.name.length > 32) return
+    if (editingCommand.description.length > 256) return
+    if (!/^[a-zA-Z0-9_]+$/.test(editingCommand.name)) return
+
+    if (editingCommand.isNew) {
       setCommands([
         ...commands,
-        { id: Date.now().toString(), name: newCommand, description: newCommandDesc, type: 'command' },
-      ]);
-      setNewCommand('');
-      setNewCommandDesc('');
-      toast.success('Command added');
-      setSyncStatus('idle');
-    } catch (err) {
-      toast.error('Failed to add command');
-      console.error(err);
+        {
+          id: `command-${Date.now()}`,
+          name: editingCommand.name,
+          description: editingCommand.description,
+        },
+      ])
     }
-  };
 
-  // Delete component
-  const deleteComponent = async (id: string, type: 'ice_breaker' | 'command') => {
-    try {
-      const { error } = await supabase
-        .from('conversational_components')
-        .delete()
-        .eq('id', id);
+    setEditingCommand(null)
+    setSyncStatus('pending')
+  }
 
-      if (error) throw error;
+  const handleDeleteCommand = (id: string) => {
+    setCommands(commands.filter((cmd) => cmd.id !== id))
+    setSyncStatus('pending')
+  }
 
-      if (type === 'ice_breaker') {
-        setIceBreakers(iceBreakers.filter((c) => c.id !== id));
-      } else {
-        setCommands(commands.filter((c) => c.id !== id));
-      }
-      toast.success('Component deleted');
-      setSyncStatus('idle');
-    } catch (err) {
-      toast.error('Failed to delete component');
-      console.error(err);
-    }
-  };
-
-  // Sync to Meta
   const handleSync = async () => {
-    if (!phoneNumberId || !accessToken || accessToken.includes('•')) {
-      toast.error('WhatsApp configuration required');
-      return;
-    }
-
-    setSyncing(true);
-    setSyncError('');
-
     try {
-      const response = await fetch('/api/whatsapp/conversational', {
+      setSyncing(true)
+      setSyncError(null)
+
+      const res = await fetch('/api/whatsapp/conversational', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phoneNumberId,
-          accessToken,
-          iceBreakers: iceBreakers.map((c) => c.name),
-          commands: commands.map((c) => ({
-            command_name: c.name,
-            command_description: c.description || '',
+          iceBreakers: iceBreakers.map((ib) => ib.name),
+          commands: commands.map((cmd) => ({
+            command_name: cmd.name,
+            command_description: cmd.description || '',
           })),
         }),
-      });
+      })
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || 'Sync failed');
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.message || 'Sync failed')
       }
 
-      setSyncStatus('synced');
-      toast.success('Synced to WhatsApp');
-    } catch (err: any) {
-      setSyncStatus('failed');
-      setSyncError(err.message || 'Sync failed');
-      toast.error('Failed to sync');
+      setSyncStatus('synced')
+      setTimeout(() => setSyncStatus('idle'), 5000)
+    } catch (error) {
+      console.error('[conversational-panel] Sync error:', error)
+      setSyncStatus('failed')
+      setSyncError(
+        error instanceof Error ? error.message : 'Failed to sync to WhatsApp'
+      )
     } finally {
-      setSyncing(false);
+      setSyncing(false)
     }
-  };
+  }
+
+  if (loading) {
+    return (
+      <Card className="bg-slate-900 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white">Conversational Components</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 text-slate-500 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="bg-slate-900 border-slate-700">
@@ -234,17 +202,16 @@ export function ConversationalComponentsPanel({
           Conversational Components
         </CardTitle>
         <CardDescription className="text-slate-400">
-          Create ice breakers and commands to guide customer conversations
+          Set up ice breakers and commands to guide customer conversations on WhatsApp
         </CardDescription>
       </CardHeader>
-
       <CardContent className="space-y-6">
-        {/* Status Alerts */}
+        {/* Status Messages */}
         {syncStatus === 'synced' && (
           <Alert className="border-emerald-900/50 bg-emerald-900/20">
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             <AlertDescription className="text-emerald-200 ml-2">
-              Components synced with WhatsApp
+              Components synced successfully with WhatsApp
             </AlertDescription>
           </Alert>
         )}
@@ -252,154 +219,289 @@ export function ConversationalComponentsPanel({
         {syncStatus === 'failed' && syncError && (
           <Alert className="border-red-900/50 bg-red-900/20">
             <AlertCircle className="h-4 w-4 text-red-500" />
-            <AlertDescription className="text-red-200 ml-2">{syncError}</AlertDescription>
+            <AlertDescription className="text-red-200 ml-2">
+              {syncError}
+            </AlertDescription>
           </Alert>
         )}
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 text-slate-500 animate-spin" />
-          </div>
-        ) : (
-          <>
-            <Tabs defaultValue="ice-breakers" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-slate-800">
-                <TabsTrigger value="ice-breakers" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-                  Ice Breakers ({iceBreakers.length}/4)
-                </TabsTrigger>
-                <TabsTrigger value="commands" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white">
-                  Commands ({commands.length}/30)
-                </TabsTrigger>
-              </TabsList>
+        {syncStatus === 'pending' && (
+          <Alert className="border-amber-900/50 bg-amber-900/20">
+            <AlertCircle className="h-4 w-4 text-amber-500" />
+            <AlertDescription className="text-amber-200 ml-2">
+              Unsaved changes. Click "Sync to WhatsApp" to apply.
+            </AlertDescription>
+          </Alert>
+        )}
 
-              {/* Ice Breakers Tab */}
-              <TabsContent value="ice-breakers" className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  {iceBreakers.length === 0 ? (
-                    <p className="text-sm text-slate-400 py-4">No ice breakers yet</p>
-                  ) : (
-                    iceBreakers.map((breaker) => (
-                      <div key={breaker.id} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700">
-                        <span className="text-slate-300 text-sm">{breaker.name}</span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => deleteComponent(breaker.id, 'ice_breaker')}
-                          className="text-red-400 hover:text-red-300 hover:bg-slate-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
+        {/* Tabs */}
+        <Tabs defaultValue="ice-breakers" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-slate-800">
+            <TabsTrigger
+              value="ice-breakers"
+              className="data-[state=active]:bg-slate-700 text-slate-300 data-[state=active]:text-white"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Ice Breakers ({iceBreakers.length}/4)
+            </TabsTrigger>
+            <TabsTrigger
+              value="commands"
+              className="data-[state=active]:bg-slate-700 text-slate-300 data-[state=active]:text-white"
+            >
+              <CommandIcon className="h-4 w-4 mr-2" />
+              Commands ({commands.length}/30)
+            </TabsTrigger>
+          </TabsList>
 
-                {iceBreakers.length < 4 && (
-                  <div className="space-y-2 p-3 bg-slate-800 rounded-lg border border-slate-700">
-                    <Input
-                      placeholder="Add ice breaker (max 80 characters)"
-                      value={newIceBreaker}
-                      onChange={(e) => setNewIceBreaker(e.target.value.slice(0, 80))}
-                      onKeyDown={(e) => e.key === 'Enter' && addIceBreaker()}
-                      className="bg-slate-700 border-slate-600 text-white placeholder-slate-500"
-                      maxLength={80}
-                    />
-                    <div className="flex justify-between items-center text-xs text-slate-400">
-                      <span>{newIceBreaker.length}/80</span>
-                      <Button size="sm" onClick={addIceBreaker} className="bg-blue-600 hover:bg-blue-700">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-
-              {/* Commands Tab */}
-              <TabsContent value="commands" className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  {commands.length === 0 ? (
-                    <p className="text-sm text-slate-400 py-4">No commands yet</p>
-                  ) : (
-                    commands.map((cmd) => (
-                      <div key={cmd.id} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700">
-                        <div className="flex-1">
-                          <div className="text-slate-300 text-sm font-mono">/{cmd.name}</div>
-                          {cmd.description && <div className="text-xs text-slate-500 mt-1">{cmd.description}</div>}
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => deleteComponent(cmd.id, 'command')}
-                          className="text-red-400 hover:text-red-300 hover:bg-slate-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {commands.length < 30 && (
-                  <div className="space-y-2 p-3 bg-slate-800 rounded-lg border border-slate-700">
-                    <div>
-                      <Label className="text-slate-300 text-xs">Command Name</Label>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-slate-400">/</span>
-                        <Input
-                          placeholder="help"
-                          value={newCommand}
-                          onChange={(e) => setNewCommand(e.target.value.slice(0, 32))}
-                          className="bg-slate-700 border-slate-600 text-white placeholder-slate-500 text-sm"
-                          maxLength={32}
-                        />
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">{newCommand.length}/32</p>
-                    </div>
-
-                    <div>
-                      <Label className="text-slate-300 text-xs">Description</Label>
-                      <textarea
-                        placeholder="What does this command do?"
-                        value={newCommandDesc}
-                        onChange={(e) => setNewCommandDesc(e.target.value.slice(0, 256))}
-                        className="w-full bg-slate-700 border border-slate-600 text-white placeholder-slate-500 p-2 rounded text-sm mt-1"
-                        rows={2}
-                        maxLength={256}
-                      />
-                      <p className="text-xs text-slate-500 mt-1">{newCommandDesc.length}/256</p>
-                    </div>
-
-                    <Button size="sm" onClick={addCommand} className="w-full bg-blue-600 hover:bg-blue-700">
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Command
+          {/* Ice Breakers Tab */}
+          <TabsContent value="ice-breakers" className="space-y-4 mt-4">
+            {/* List */}
+            <div className="space-y-2">
+              {iceBreakers.map((ib) => (
+                <div
+                  key={ib.id}
+                  className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700 hover:border-slate-600"
+                >
+                  <p className="text-white text-sm flex-1">{ib.name}</p>
+                  <div className="flex gap-2 ml-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setEditingIceBreaker({ ...ib, isNew: false })
+                      }
+                      className="h-7 px-2 text-blue-400 hover:text-blue-300 hover:bg-slate-700 text-xs"
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteIceBreaker(ib.id)}
+                      className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-slate-700"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                )}
-              </TabsContent>
-            </Tabs>
+                </div>
+              ))}
+            </div>
 
-            {/* Sync Button */}
-            <Button
-              onClick={handleSync}
-              disabled={syncing || iceBreakers.length === 0 || commands.length === 0}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {syncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Syncing...
-                </>
-              ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-2" />
-                  Sync to WhatsApp
-                </>
-              )}
-            </Button>
-          </>
-        )}
+            {/* Edit Form */}
+            {editingIceBreaker && (
+              <div className="p-4 bg-slate-800 rounded-lg border border-slate-700 space-y-3">
+                <div>
+                  <Label className="text-slate-300 text-sm mb-2 block">
+                    Ice Breaker Text (max 80 characters)
+                  </Label>
+                  <Input
+                    placeholder="e.g., Browse our products"
+                    value={editingIceBreaker.name}
+                    onChange={(e) =>
+                      setEditingIceBreaker({
+                        ...editingIceBreaker,
+                        name: e.target.value.slice(0, 80),
+                      })
+                    }
+                    className="bg-slate-700 border-slate-600 text-white placeholder-slate-500"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    {editingIceBreaker.name.length} / 80
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveIceBreaker}
+                    disabled={!editingIceBreaker.name.trim()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingIceBreaker(null)}
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700 text-sm"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Add Button */}
+            {!editingIceBreaker && iceBreakers.length < 4 && (
+              <Button
+                onClick={handleAddIceBreaker}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Ice Breaker
+              </Button>
+            )}
+
+            {iceBreakers.length >= 4 && !editingIceBreaker && (
+              <p className="text-xs text-slate-500 text-center py-2">
+                Maximum 4 ice breakers reached
+              </p>
+            )}
+          </TabsContent>
+
+          {/* Commands Tab */}
+          <TabsContent value="commands" className="space-y-4 mt-4">
+            {/* List */}
+            <div className="space-y-2">
+              {commands.map((cmd) => (
+                <div
+                  key={cmd.id}
+                  className="flex items-start justify-between p-3 bg-slate-800 rounded-lg border border-slate-700 hover:border-slate-600"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-mono">/{cmd.name}</p>
+                    {cmd.description && (
+                      <p className="text-xs text-slate-400 mt-1 truncate">
+                        {cmd.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 ml-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setEditingCommand({ ...cmd, isNew: false })
+                      }
+                      className="h-7 px-2 text-blue-400 hover:text-blue-300 hover:bg-slate-700 text-xs"
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteCommand(cmd.id)}
+                      className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-slate-700"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Edit Form */}
+            {editingCommand && (
+              <div className="p-4 bg-slate-800 rounded-lg border border-slate-700 space-y-3">
+                <div>
+                  <Label className="text-slate-300 text-sm mb-2 block">
+                    Command Name (alphanumeric + underscore, max 32)
+                  </Label>
+                  <div className="flex gap-1">
+                    <span className="text-slate-400 py-2 px-3 bg-slate-700 rounded text-sm">
+                      /
+                    </span>
+                    <Input
+                      placeholder="e.g., help"
+                      value={editingCommand.name}
+                      onChange={(e) =>
+                        setEditingCommand({
+                          ...editingCommand,
+                          name: e.target.value
+                            .replace(/[^a-zA-Z0-9_]/g, '')
+                            .slice(0, 32),
+                        })
+                      }
+                      className="bg-slate-700 border-slate-600 text-white placeholder-slate-500 font-mono"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {editingCommand.name.length} / 32
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-slate-300 text-sm mb-2 block">
+                    Description (max 256 characters)
+                  </Label>
+                  <textarea
+                    placeholder="What does this command do?"
+                    value={editingCommand.description}
+                    onChange={(e) =>
+                      setEditingCommand({
+                        ...editingCommand,
+                        description: e.target.value.slice(0, 256),
+                      })
+                    }
+                    className="w-full bg-slate-700 border border-slate-600 rounded-md text-white placeholder-slate-500 p-2 text-sm"
+                    rows={2}
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    {editingCommand.description.length} / 256
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveCommand}
+                    disabled={
+                      !editingCommand.name.trim() ||
+                      !/^[a-zA-Z0-9_]+$/.test(editingCommand.name)
+                    }
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingCommand(null)}
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700 text-sm"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Add Button */}
+            {!editingCommand && commands.length < 30 && (
+              <Button
+                onClick={handleAddCommand}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Command
+              </Button>
+            )}
+
+            {commands.length >= 30 && !editingCommand && (
+              <p className="text-xs text-slate-500 text-center py-2">
+                Maximum 30 commands reached
+              </p>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Sync Button */}
+        <Button
+          onClick={handleSync}
+          disabled={syncing || (syncStatus !== 'pending' && syncStatus !== 'idle')}
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+        >
+          {syncing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Syncing...
+            </>
+          ) : (
+            <>
+              <Zap className="h-4 w-4 mr-2" />
+              Sync to WhatsApp
+            </>
+          )}
+        </Button>
       </CardContent>
     </Card>
-  );
+  )
 }
