@@ -645,31 +645,37 @@ async function processMessage(
   // Fetch active components for this phone number to detect source
   let componentSource: 'ice_breaker' | 'command' | null = null
   try {
-    const { data: components, error: compError } = await supabaseAdmin()
-      .from('conversational_components')
-      .select('name, type')
-      .eq('user_id', userId)
-      .eq('phone_number_id', message.from) // Note: this is the phone of the message sender, not our number
-      .eq('status', 'active')
-    
-    if (!compError && components && components.length > 0) {
-      const iceBreakers = components
-        .filter((c: { type: string }) => c.type === 'ice_breaker')
-        .map((c: { name: string }) => c.name)
-      const commands = components
-        .filter((c: { type: string }) => c.type === 'command')
-        .map((c: { name: string }) => c.name)
+    // Get the phone_number_id from the webhook metadata
+    const phoneNumberId = metadata?.phone_number_id
+    if (!phoneNumberId) {
+      console.warn('[webhook] Missing phone_number_id for component detection')
+    } else {
+      const { data: components, error: compError } = await supabaseAdmin()
+        .from('conversational_components')
+        .select('name, type')
+        .eq('user_id', userId)
+        .eq('phone_number_id', phoneNumberId)
+        .eq('status', 'active')
       
-      componentSource = detectComponentSource(
-        contentText || message.text?.body || '',
-        iceBreakers,
-        commands
-      )
-      
-      if (componentSource) {
-        console.log(
-          `[webhook] message from ${componentSource}: "${contentText || message.text?.body}"`
+      if (!compError && components && components.length > 0) {
+        const iceBreakers = components
+          .filter((c: { type: string }) => c.type === 'ice_breaker')
+          .map((c: { name: string }) => c.name)
+        const commands = components
+          .filter((c: { type: string }) => c.type === 'command')
+          .map((c: { name: string }) => c.name)
+        
+        componentSource = detectComponentSource(
+          contentText || message.text?.body || '',
+          iceBreakers,
+          commands
         )
+        
+        if (componentSource) {
+          console.log(
+            `[webhook] message from ${componentSource}: "${contentText || message.text?.body}"`
+          )
+        }
       }
     }
   } catch (err) {

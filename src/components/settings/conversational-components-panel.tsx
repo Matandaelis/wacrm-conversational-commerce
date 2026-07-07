@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useCallback } from 'react'
+import useSWR, { mutate } from 'swr'
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import {
   Tabs,
   TabsContent,
@@ -22,6 +24,14 @@ import {
   AlertDescription,
 } from '@/components/ui/alert'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Plus,
   Trash2,
   Loader2,
@@ -30,12 +40,20 @@ import {
   CheckCircle2,
   MessageCircle,
   Command as CommandIcon,
+  Clock,
 } from 'lucide-react'
 
 interface ConversationalComponent {
   id: string
   name: string
   description?: string
+  type?: 'ice_breaker' | 'command'
+}
+
+interface ComponentsData {
+  ice_breakers: ConversationalComponent[]
+  commands: ConversationalComponent[]
+  sync_status?: string
 }
 
 interface PanelProps {
@@ -43,16 +61,21 @@ interface PanelProps {
   accessToken: string
 }
 
+const fetcher = (url: string) => fetch(url).then((r) => {
+  if (!r.ok) throw new Error('Failed to fetch')
+  return r.json()
+})
+
 export function ConversationalComponentsPanel({
   phoneNumberId,
   accessToken,
 }: PanelProps) {
   const [iceBreakers, setIceBreakers] = useState<ConversationalComponent[]>([])
   const [commands, setCommands] = useState<ConversationalComponent[]>([])
-  const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [syncStatus, setSyncStatus] = useState<'idle' | 'synced' | 'pending' | 'failed'>('idle')
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null)
   const [editingIceBreaker, setEditingIceBreaker] = useState<{
     name: string
     isNew?: boolean
@@ -62,28 +85,19 @@ export function ConversationalComponentsPanel({
     description: string
     isNew?: boolean
   } | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'ice_breaker' | 'command', id: string } | null>(null)
 
-  // Load components on mount
-  useEffect(() => {
-    loadComponents()
-  }, [phoneNumberId])
+  // Fetch components with SWR
+  const { data, isLoading, error } = useSWR<ComponentsData>(
+    phoneNumberId ? `/api/whatsapp/conversational?phone_number_id=${phoneNumberId}` : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 5000 }
+  )
 
-  const loadComponents = async () => {
-    try {
-      setLoading(true)
-      const res = await fetch('/api/whatsapp/conversational')
-      if (!res.ok) throw new Error('Failed to load components')
-      const data = await res.json()
-      setIceBreakers(data.ice_breakers || [])
-      setCommands(data.commands || [])
-      setSyncStatus('idle')
-    } catch (error) {
-      console.error('[conversational-panel] Load error:', error)
-      setSyncStatus('failed')
-      setSyncError('Failed to load components')
-    } finally {
-      setLoading(false)
-    }
+  // Sync local state with fetched data
+  if (data && (iceBreakers.length === 0 && commands.length === 0)) {
+    setIceBreakers(data.ice_breakers || [])
+    setCommands(data.commands || [])
   }
 
   const handleAddIceBreaker = () => {
@@ -108,10 +122,11 @@ export function ConversationalComponentsPanel({
     setSyncStatus('pending')
   }
 
-  const handleDeleteIceBreaker = (id: string) => {
-    setIceBreakers(iceBreakers.filter((ib) => ib.id !== id))
+  const handleDeleteIceBreaker = useCallback((id: string) => {
+    setIceBreakers((prev) => prev.filter((ib) => ib.id !== id))
     setSyncStatus('pending')
-  }
+    setDeleteConfirm(null)
+  }, [])
 
   const handleAddCommand = () => {
     setEditingCommand({ name: '', description: '', isNew: true })
@@ -124,8 +139,8 @@ export function ConversationalComponentsPanel({
     if (!/^[a-zA-Z0-9_]+$/.test(editingCommand.name)) return
 
     if (editingCommand.isNew) {
-      setCommands([
-        ...commands,
+      setCommands((prev) => [
+        ...prev,
         {
           id: `command-${Date.now()}`,
           name: editingCommand.name,
@@ -138,12 +153,13 @@ export function ConversationalComponentsPanel({
     setSyncStatus('pending')
   }
 
-  const handleDeleteCommand = (id: string) => {
-    setCommands(commands.filter((cmd) => cmd.id !== id))
+  const handleDeleteCommand = useCallback((id: string) => {
+    setCommands((prev) => prev.filter((cmd) => cmd.id !== id))
     setSyncStatus('pending')
-  }
+    setDeleteConfirm(null)
+  }, [])
 
-  const handleSync = async () => {
+  const handleSync = useCallback(async () => {
     try {
       setSyncing(true)
       setSyncError(null)
@@ -152,8 +168,8 @@ export function ConversationalComponentsPanel({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phoneNumberId,
-          iceBreakers: iceBreakers.map((ib) => ib.name),
+          phone_number_id: phoneNumberId,
+          ice_breakers: iceBreakers.map((ib) => ib.name),
           commands: commands.map((cmd) => ({
             command_name: cmd.name,
             command_description: cmd.description || '',
@@ -162,12 +178,16 @@ export function ConversationalComponentsPanel({
       })
 
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.message || 'Sync failed')
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Sync failed')
       }
 
+      const now = new Date().toLocaleTimeString()
+      setLastSyncTime(now)
       setSyncStatus('synced')
       setTimeout(() => setSyncStatus('idle'), 5000)
+      // Revalidate data after sync
+      mutate(`/api/whatsapp/conversational?phone_number_id=${phoneNumberId}`)
     } catch (error) {
       console.error('[conversational-panel] Sync error:', error)
       setSyncStatus('failed')
@@ -177,18 +197,43 @@ export function ConversationalComponentsPanel({
     } finally {
       setSyncing(false)
     }
-  }
+  }, [phoneNumberId, iceBreakers, commands])
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <Card className="bg-slate-900 border-slate-700">
+      <Card className="bg-slate-900 border-slate-700 ring-0 ring-transparent">
         <CardHeader>
-          <CardTitle className="text-white">Conversational Components</CardTitle>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Zap className="h-5 w-5 text-amber-500" />
+            Conversational Components
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 text-slate-500 animate-spin" />
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Loader2 className="h-8 w-8 text-slate-400 animate-spin" />
+            <p className="text-sm text-slate-400">Loading components...</p>
           </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="bg-slate-900 border-slate-700 ring-0 ring-transparent">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            Conversational Components
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert className="border-red-900/50 bg-red-900/20">
+            <AlertCircle className="h-4 w-4 text-red-500" />
+            <AlertDescription className="text-red-200 ml-2">
+              Failed to load components. Please try again.
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     )
@@ -277,7 +322,7 @@ export function ConversationalComponentsPanel({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDeleteIceBreaker(ib.id)}
+                      onClick={() => setDeleteConfirm({ type: 'ice_breaker', id: ib.id })}
                       className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-slate-700"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -379,7 +424,7 @@ export function ConversationalComponentsPanel({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDeleteCommand(cmd.id)}
+                      onClick={() => setDeleteConfirm({ type: 'command', id: cmd.id })}
                       className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-slate-700"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -483,16 +528,35 @@ export function ConversationalComponentsPanel({
           </TabsContent>
         </Tabs>
 
+        {/* Divider */}
+        <div className="h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+
+        {/* Last Sync Info */}
+        {lastSyncTime && (
+          <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <Clock className="h-4 w-4" />
+              <span>Last synced: {lastSyncTime}</span>
+            </div>
+            <Badge className="bg-emerald-900/50 text-emerald-300 border-0">Synced</Badge>
+          </div>
+        )}
+
         {/* Sync Button */}
         <Button
           onClick={handleSync}
-          disabled={syncing || (syncStatus !== 'pending' && syncStatus !== 'idle')}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+          disabled={syncing}
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:shadow-lg transition-all"
         >
           {syncing ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Syncing...
+              Syncing to WhatsApp...
+            </>
+          ) : syncStatus === 'pending' ? (
+            <>
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Unsaved Changes - Click to Sync
             </>
           ) : (
             <>
@@ -501,7 +565,39 @@ export function ConversationalComponentsPanel({
             </>
           )}
         </Button>
+
+        {/* Info Box */}
+        <div className="p-3 bg-blue-900/20 border border-blue-900/50 rounded-lg">
+          <p className="text-xs text-blue-300">
+            <span className="font-semibold">Tip:</span> Ice breakers appear when customers first message you. Commands are triggered by typing /{'{name}'}.
+          </p>
+        </div>
       </CardContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogTitle className="text-white">Delete {deleteConfirm?.type === 'ice_breaker' ? 'Ice Breaker' : 'Command'}?</AlertDialogTitle>
+          <AlertDialogDescription className="text-slate-400">
+            This action cannot be undone. The {deleteConfirm?.type === 'ice_breaker' ? 'ice breaker' : 'command'} will be removed from WhatsApp.
+          </AlertDialogDescription>
+          <div className="flex gap-3 mt-6">
+            <AlertDialogCancel className="border-slate-600 text-slate-300 hover:bg-slate-800">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteConfirm?.type === 'ice_breaker') {
+                  handleDeleteIceBreaker(deleteConfirm.id)
+                } else {
+                  handleDeleteCommand(deleteConfirm.id)
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
